@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node server/index.js",
+    "start:demo": "node scripts/start-demo.js",
     "dev": "node --watch server/index.js",
     "seed": "node scripts/seed.js",
     "smoke": "node scripts/smoke.js",
