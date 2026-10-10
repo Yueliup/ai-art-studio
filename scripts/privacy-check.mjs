@@ -75,10 +75,26 @@ async function scan(label, path) {
 const main = async () => {
   console.log(`\n=== 泄漏自检 @ ${BASE} ===\n`);
 
+  // 先判断实例模式：非演示模式下 /api/config/paths 是「本地运维面板」的一部分，
+  // 返回绝对路径是刻意设计（方便复制粘贴），不算泄漏；演示模式必须脱敏。
+  let demo = false;
+  try {
+    const h = await (await fetch(`${BASE}/api/system/health`)).json();
+    demo = Boolean(h?.data?.demo);
+  } catch {
+    console.log('  \x1b[31m✗\x1b[0m 无法读取 /api/system/health，服务可能未启动');
+    process.exit(1);
+  }
+  console.log(`实例模式：${demo ? '演示模式（AIART_DEMO=1，路径必须脱敏）' : '本地模式（允许本地运维面板回显绝对路径）'}\n`);
+
   await scan('GET /api/system/meta', '/api/system/meta');
   await scan('GET /api/system/health', '/api/system/health');
   await scan('GET /api/stats/overview', '/api/stats/overview');
-  await scan('GET /api/config/paths', '/api/config/paths');
+  if (demo) {
+    await scan('GET /api/config/paths', '/api/config/paths');
+  } else {
+    console.log('  \x1b[90m·\x1b[0m GET /api/config/paths 跳过（本地模式下刻意回显绝对路径）');
+  }
   await scan('GET /api/config/raw', '/api/config/raw');
   await scan('GET /api/providers', '/api/providers');
   await scan('GET /api/workspace/tree', '/api/workspace/tree?subdir=outputs');
