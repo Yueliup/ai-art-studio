@@ -11,7 +11,8 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "seed": "node scripts/seed.js",
-    "smoke": "node scripts/smoke.js"
+    "smoke": "node scripts/smoke.js",
+    "privacy-check": "node scripts/privacy-check.mjs"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",

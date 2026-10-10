@@ -24,6 +24,7 @@ export function registerSystemRoutes(router) {
     const stats = jobStore.stats();
     return {
       status: 'ok',
+      demo: getConfig().demo,
       uptimeSec: Math.round(process.uptime()),
       node: process.version,
       platform: `${process.platform}/${process.arch}`,
@@ -45,6 +46,7 @@ export function registerSystemRoutes(router) {
     return {
       version: '1.0.0',
       product: 'AI Art Studio',
+      demo: cfg.demo,
       errorCodes: Object.entries(ERROR_CODES).map(([code, m]) => ({ code, ...m })),
       namingPresets: listPresets(),
       namingPresetsFull: Object.values(PRESETS),
@@ -81,16 +83,19 @@ export function registerSystemRoutes(router) {
   router.get('/api/workspace/tree', async (ctx) => {
     const subdir = ctx.query.subdir || 'outputs';
     const dir = absPath(subdir);
-    if (!fs.existsSync(dir)) return { subdir, dir, entries: [], total: 0, totalBytes: 0 };
+    // 注意：一律不回传 dir（绝对路径），只回 subdir 与相对条目
+    if (!fs.existsSync(dir)) return { subdir, entries: [], total: 0, totalBytes: 0, totalBytesText: '0 B' };
     const entries = [];
     walk(dir, dir, entries);
     entries.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    const slice = entries.slice(0, Number(ctx.query.limit || 200));
+    const totalBytes = entries.reduce((s, e) => s + e.bytes, 0);
     return {
       subdir,
-      entries: entries.slice(0, Number(ctx.query.limit || 200)),
+      entries: slice,
       total: entries.length,
-      totalBytes: entries.reduce((s, e) => s + e.bytes, 0),
-      totalBytesText: humanBytes(entries.reduce((s, e) => s + e.bytes, 0)),
+      totalBytes,
+      totalBytesText: humanBytes(totalBytes),
     };
   });
 
@@ -145,25 +150,41 @@ export function registerSystemRoutes(router) {
     if (!cfg.providers.definitions[providerId]) {
       throw new AppError('E_PROVIDER_NOT_FOUND', `提供方「${providerId}」不存在`);
     }
+    // 演示模式：允许切换启停/切换当前提供方，但不接受写入密钥 ——
+    // 公开链接上的访客不该能把凭据写进宿主机器的配置文件。
+    if (cfg.demo && patch && typeof patch === 'object' && patch.apiKey !== undefined && patch.apiKey !== '') {
+      throw new AppError('E_AUTH_FORBIDDEN', '演示环境不允许写入 API Key，请在本地部署后配置', {
+        details: { field: 'apiKey', demo: true },
+      });
+    }
     const allowed = ['enabled', 'baseUrl', 'apiKey', 'timeoutMs', 'maxConcurrency', 'models', 'defaults', 'label'];
     const clean = {};
     for (const [k, v] of Object.entries(patch || {})) {
       if (allowed.includes(k)) clean[k] = v;
     }
-    updateConfig({ providers: { definitions: { [providerId]: clean }, ...(setActive ? { active: setActive } : {}) } });
+    // 演示模式：改动立即生效但不落盘（访客能试，重启后回到初始状态）
+    updateConfig(
+      { providers: { definitions: { [providerId]: clean }, ...(setActive ? { active: setActive } : {}) } },
+      { persist: !cfg.demo }
+    );
     providers.sync();
 
     // 配置变更后立刻做一次健康检查，把结果直接回给前端，省一次往返
     const adapter = providers.get(providerId);
     const health = await adapter.healthCheck();
-    return { provider: { ...adapter.describe(), health }, active: providers.activeId, applied: Object.keys(clean) };
+    return {
+      provider: { ...adapter.describe(), health },
+      active: providers.activeId,
+      applied: Object.keys(clean),
+      persisted: !cfg.demo,
+    };
   });
 
   router.post('/api/providers/activate', async (ctx) => {
     const { providerId } = ctx.body?.data || {};
     providers.get(providerId);
-    updateConfig({ providers: { active: providerId } });
-    return { active: providers.activeId };
+    updateConfig({ providers: { active: providerId } }, { persist: !getConfig().demo });
+    return { active: providers.activeId, persisted: !getConfig().demo };
   });
 
   /** 命名规范试算：给出文件名与规范集，立即返回校验结果与建议名。 */
@@ -180,14 +201,31 @@ export function registerSystemRoutes(router) {
 
   router.get('/api/config/raw', async () => ({ config: redactConfig() }));
 
-  router.get('/api/config/paths', async () => ({
-    root: ROOT,
-    workspace: absPath(),
-    uploads: absPath('uploads'),
-    outputs: absPath('outputs'),
-    packages: absPath('packages'),
-    reports: absPath('reports'),
-  }));
+  router.get('/api/config/paths', async () => {
+    const cfg = getConfig();
+    const abs = {
+      root: ROOT,
+      workspace: absPath(),
+      uploads: absPath('uploads'),
+      outputs: absPath('outputs'),
+      packages: absPath('packages'),
+      reports: absPath('reports'),
+    };
+    // 演示模式下不暴露服务器目录结构：只给工作区内的相对路径
+    if (cfg.demo) {
+      return {
+        demo: true,
+        root: '<server>',
+        workspace: cfg.paths.workspace,
+        uploads: `${cfg.paths.workspace}/uploads`,
+        outputs: `${cfg.paths.workspace}/outputs`,
+        packages: `${cfg.paths.workspace}/packages`,
+        reports: `${cfg.paths.workspace}/reports`,
+        note: '当前为演示模式，仅展示工作区内的相对路径',
+      };
+    }
+    return abs;
+  });
 }
 
 function walk(root, dir, out, depth = 0) {

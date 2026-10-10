@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { AppError } from '../core/errors.js';
 import { jobStore, JOB_STATUS, withWorkspacePath } from '../core/store.js';
+import { publicArtifact, stripAbsolutePaths } from '../core/sanitize.js';
 import { jobQueue } from '../core/queue.js';
 import { paginated } from '../core/response.js';
 import { humanBytes } from '../util/misc.js';
@@ -27,9 +28,10 @@ export function registerJobRoutes(router) {
 
   router.get('/api/jobs/:id', async (ctx) => {
     const job = jobStore.get(ctx.params.id);
+    // 必须走 serialize()：这里曾经直接展开原始 job，把 payload.outDir 这类绝对路径带了出去
     return {
       job: {
-        ...job,
+        ...serialize(job),
         queuePosition: job.status === JOB_STATUS.QUEUED ? Math.max(0, jobQueue.pending.findIndex((p) => p.record.id === job.id)) : null,
       },
     };
@@ -117,7 +119,7 @@ export function registerJobRoutes(router) {
     return {
       jobId: job.id,
       count: (job.artifacts || []).length,
-      artifacts: (job.artifacts || []).map((a) => ({ ...withWorkspacePath({ ...a }), exists: a.path ? fs.existsSync(a.path) : false })),
+      artifacts: (job.artifacts || []).map((a) => ({ ...publicArtifact(withWorkspacePath({ ...a })), exists: a.path ? fs.existsSync(a.path) : false })),
     };
   });
 
@@ -186,8 +188,11 @@ function serialize(job) {
     maxRetries: job.maxRetries,
     counts: job.counts,
     error: job.error,
-    artifacts: (job.artifacts || []).map((a) => withWorkspacePath({ ...a })),
-    result: job.result,
+    // payload 里有 outDir 等绝对路径，统一走脱敏
+    payload: stripAbsolutePaths(job.payload),
+    artifacts: (job.artifacts || []).map((a) => publicArtifact(withWorkspacePath({ ...a }))),
+    // result 里各流水线的 outDir / package.path 等都是绝对路径，统一在这里剥掉
+    result: stripAbsolutePaths(job.result),
     logs: job.logs?.slice(-40),
   };
 }

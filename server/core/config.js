@@ -14,7 +14,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(__dirname, '..', '..');
 
 const DEFAULTS = {
+  // host 默认只监听回环：本地开发不该意外暴露到局域网。
+  // 一旦通过 PORT 环境变量注入（容器/托管平台/部署沙箱的通行约定），自动改为 0.0.0.0。
   server: { port: 8848, host: '127.0.0.1', bodyLimitMB: 256, corsOrigin: '*' },
+  // 演示模式：对外公开时自动开启（AIART_DEMO=1），隐藏服务器目录结构并禁止写入密钥
+  demo: false,
   paths: {
     workspace: 'workspace',
     uploads: 'workspace/uploads',
@@ -131,6 +135,13 @@ function readJsonIfExists(file) {
 
 function applyEnv(cfg, env) {
   const num = (v, d) => (v === undefined || v === '' ? d : Number(v));
+
+  // PORT 是托管平台/部署沙箱的通行约定：既要改端口，也要能被反向代理访问到，
+  // 所以此时把监听地址放开到 0.0.0.0（本地开发仍然只监听 127.0.0.1）。
+  if (env.PORT) {
+    cfg.server.port = num(env.PORT, cfg.server.port);
+    if (!env.AIART_HOST) cfg.server.host = '0.0.0.0';
+  }
   if (env.AIART_PORT) cfg.server.port = num(env.AIART_PORT, cfg.server.port);
   if (env.AIART_HOST) cfg.server.host = env.AIART_HOST;
   if (env.AIART_WORKSPACE) cfg.paths.workspace = env.AIART_WORKSPACE;
@@ -138,6 +149,7 @@ function applyEnv(cfg, env) {
   if (env.AIART_LOG_LEVEL) cfg.log = { ...(cfg.log || {}), level: env.AIART_LOG_LEVEL };
   if (env.AIART_AUTH_TOKEN) cfg.auth.token = env.AIART_AUTH_TOKEN;
   if (env.AIART_ACTIVE_PROVIDER) cfg.providers.active = env.AIART_ACTIVE_PROVIDER;
+  if (env.AIART_DEMO !== undefined) cfg.demo = env.AIART_DEMO === '1' || String(env.AIART_DEMO).toLowerCase() === 'true';
   return cfg;
 }
 
@@ -163,9 +175,16 @@ export function reloadConfig() {
   return config;
 }
 
-export function updateConfig(patch) {
-  const next = deepMerge(config, patch);
-  config = next;
+/**
+ * 更新配置。
+ * @param {object} patch
+ * @param {{persist?: boolean}} [opts] persist=false 时只改内存（演示环境：访客的改动即刻生效，
+ *   但不落盘、不污染后续访问者看到的初始状态）
+ */
+export function updateConfig(patch, opts = {}) {
+  const { persist = true } = opts;
+  config = deepMerge(config, patch);
+  if (!persist) return config;
   fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(stripRuntime(config), null, 2), 'utf8');
   return config;

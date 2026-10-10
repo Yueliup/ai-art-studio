@@ -1597,6 +1597,7 @@ async function refreshPills() {
   try {
     const h = await api.get('/api/system/health');
     const online = h.providers.filter((p) => p.ok).length;
+    if (h.demo) $('#pillDemo').hidden = false;
     $('#pillProvider').textContent = `提供方：${h.activeProvider}`;
     $('#pillQueue').textContent = `队列 ${h.queue.running}/${h.queue.global.limit} · 等待 ${h.queue.pending}`;
     $('#healthText').textContent = `${online}/${h.providers.length} 提供方可用 · 任务 ${h.jobs.total}`;

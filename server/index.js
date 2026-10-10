@@ -37,7 +37,9 @@ export async function bootstrap() {
   initLogger({ level: cfg.log?.level || process.env.LOG_LEVEL || 'info', logDir: path.join(ROOT, 'workspace', 'logs') });
 
   logger.info('boot.config', {
-    port: cfg.server.port,
+    listen: `${cfg.server.host}:${cfg.server.port}`,
+    portFromEnv: Boolean(process.env.PORT),
+    demo: cfg.demo,
     workspace: cfg.paths.workspace,
     concurrency: cfg.queue.concurrency,
     activeProvider: cfg.providers.active,

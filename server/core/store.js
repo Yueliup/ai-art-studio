@@ -14,6 +14,7 @@ import { EventEmitter } from 'node:events';
 import { getConfig, absPath } from './config.js';
 import { AppError } from './errors.js';
 import { logger } from './logger.js';
+import { publicArtifact } from './sanitize.js';
 
 /**
  * 给产物补一个「相对工作区根目录」的路径，供前端通过 /api/workspace/file 安全取图。
@@ -154,9 +155,11 @@ export class JobStore extends EventEmitter {
   addArtifact(id, artifact) {
     const job = this.jobs.get(id);
     if (!job) return;
-    job.artifacts.push(withWorkspacePath(artifact));
+    const stored = withWorkspacePath(artifact);
+    job.artifacts.push(stored);
     this._touch();
-    this.emit(id, { type: 'job.artifact', artifact: withWorkspacePath(artifact) });
+    // 事件里推送的是脱敏副本：SSE 与 HTTP 响应一样不该带服务器绝对路径
+    this.emit(id, { type: 'job.artifact', artifact: publicArtifact(stored) });
   }
 
   _trim() {
