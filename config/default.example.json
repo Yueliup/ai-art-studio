@@ -1,0 +1,171 @@
+{
+  "server": {
+    "port": 8848,
+    "host": "127.0.0.1",
+    "bodyLimitMB": 256,
+    "corsOrigin": "*"
+  },
+  "paths": {
+    "workspace": "workspace",
+    "uploads": "workspace/uploads",
+    "outputs": "workspace/outputs",
+    "packages": "workspace/packages",
+    "reports": "workspace/reports",
+    "logs": "workspace/logs",
+    "jobs": "workspace/jobs.json"
+  },
+  "queue": {
+    "concurrency": 3,
+    "maxQueueSize": 200,
+    "maxRetries": 2,
+    "baseBackoffMs": 800,
+    "jobTtlHours": 72,
+    "historyLimit": 300
+  },
+  "convert": {
+    "allowedInput": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "avif",
+      "tiff",
+      "gif",
+      "bmp"
+    ],
+    "allowedOutput": [
+      "png",
+      "jpg",
+      "webp",
+      "avif",
+      "tiff"
+    ]
+  },
+  "inspect": {
+    "namingPreset": "game-ui",
+    "minEdge": 8,
+    "maxEdge": 8192,
+    "requirePowerOfTwo": false,
+    "alphaPolicy": "any",
+    "maxFileSizeKB": 20480,
+    "duplicateDistance": 4
+  },
+  "providers": {
+    "active": "local-mock",
+    "definitions": {
+      "local-mock": {
+        "label": "本地模拟渲染器",
+        "kind": "mock",
+        "enabled": true,
+        "baseUrl": "",
+        "timeoutMs": 30000,
+        "maxConcurrency": 4,
+        "models": [
+          "mock-diffusion-v1",
+          "mock-painter-v1"
+        ],
+        "defaults": {
+          "model": "mock-diffusion-v1",
+          "width": 1024,
+          "height": 1024
+        }
+      },
+      "sd-webui": {
+        "label": "Stable Diffusion WebUI (A1111)",
+        "kind": "sdwebui",
+        "enabled": false,
+        "baseUrl": "http://127.0.0.1:7860",
+        "apiKey": "",
+        "timeoutMs": 180000,
+        "maxConcurrency": 1,
+        "models": [
+          "sd_xl_base_1.0",
+          "anything-v5"
+        ],
+        "defaults": {
+          "model": "sd_xl_base_1.0",
+          "width": 1024,
+          "height": 1024,
+          "steps": 28,
+          "cfgScale": 7,
+          "sampler": "DPM++ 2M Karras"
+        }
+      },
+      "comfyui": {
+        "label": "ComfyUI (工作流引擎)",
+        "kind": "comfyui",
+        "enabled": false,
+        "baseUrl": "http://127.0.0.1:8188",
+        "apiKey": "",
+        "timeoutMs": 300000,
+        "maxConcurrency": 1,
+        "models": [
+          "workflow:base_txt2img"
+        ],
+        "defaults": {
+          "model": "workflow:base_txt2img",
+          "width": 1024,
+          "height": 1024,
+          "steps": 24
+        }
+      },
+      "openai-images": {
+        "label": "OpenAI Images",
+        "kind": "openai",
+        "enabled": false,
+        "baseUrl": "https://api.openai.com/v1",
+        "apiKey": "env:OPENAI_API_KEY",
+        "timeoutMs": 120000,
+        "maxConcurrency": 4,
+        "models": [
+          "gpt-image-1",
+          "dall-e-3"
+        ],
+        "defaults": {
+          "model": "gpt-image-1",
+          "width": 1024,
+          "height": 1024
+        }
+      },
+      "dashscope": {
+        "label": "阿里云百炼 · 通义万相",
+        "kind": "dashscope",
+        "enabled": false,
+        "baseUrl": "https://dashscope.aliyuncs.com/api/v1",
+        "apiKey": "env:DASHSCOPE_API_KEY",
+        "timeoutMs": 120000,
+        "maxConcurrency": 4,
+        "models": [
+          "wanx2.1-t2i-turbo",
+          "wanx2.1-t2i-plus"
+        ],
+        "defaults": {
+          "model": "wanx2.1-t2i-turbo",
+          "width": 1024,
+          "height": 1024
+        }
+      },
+      "volcengine": {
+        "label": "火山引擎 · 即梦 AI",
+        "kind": "volcengine",
+        "enabled": false,
+        "baseUrl": "https://visual.volcengineapi.com",
+        "apiKey": "env:ARK_API_KEY",
+        "timeoutMs": 120000,
+        "maxConcurrency": 2,
+        "models": [
+          "jimeng-high-aes",
+          "jimeng-2.1"
+        ],
+        "defaults": {
+          "model": "jimeng-2.1",
+          "width": 1024,
+          "height": 1024
+        }
+      }
+    }
+  },
+  "auth": {
+    "token": ""
+  }
+}

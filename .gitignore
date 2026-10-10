@@ -1,0 +1,32 @@
+# ---- 依赖 ----
+node_modules/
+.npm/
+
+# ---- 运行时数据 ----
+# 工作区里全是可再生的运行时产物（上传件、生成产物、交付包、日志、任务历史），
+# 用 `npm run seed` + 跑一次任务即可重建，不应进版本库。
+workspace/
+
+# ---- 本地配置（可能写入真实密钥，只提交 default.example.json）----
+config/default.json
+
+# ---- 环境与密钥 ----
+.env
+.env.*
+*.pem
+*.key
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- 日志与临时文件 ----
+*.log
+logs/
+tmp/
+*.tmp
+*.tsbuildinfo

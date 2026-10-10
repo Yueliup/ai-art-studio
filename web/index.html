@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Art Studio · 美术生产工具集</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316202e'/%3E%3Cpath d='M9 22l6-13 4 8 2-3 3 8z' fill='%2360d6ff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css?v=1.0.0">
+</head>
+<body>
+<div class="app">
+  <!-- ============ 侧边栏 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 32 32" width="22" height="22"><rect width="32" height="32" rx="7" fill="#16202e"/><path d="M9 22l6-13 4 8 2-3 3 8z" fill="#60d6ff"/></svg>
+      </div>
+      <div class="brand-text">
+        <strong>AI Art Studio</strong>
+        <span>美术生产工具集 v1.0</span>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <div class="nav-group">生产</div>
+      <a class="nav-item" data-view="dashboard"><i class="ico">◱</i><span>总览看板</span></a>
+      <a class="nav-item" data-view="delivery"><i class="ico">⚡</i><span>一键全链路交付</span></a>
+      <a class="nav-item" data-view="generate"><i class="ico">✦</i><span>批量生成</span></a>
+      <a class="nav-item" data-view="convert"><i class="ico">⇄</i><span>格式转换</span></a>
+
+      <div class="nav-group">治理</div>
+      <a class="nav-item" data-view="inspect"><i class="ico">✓</i><span>命名与资产检查</span></a>
+      <a class="nav-item" data-view="packages"><i class="ico">▣</i><span>交付包</span></a>
+      <a class="nav-item" data-view="assets"><i class="ico">▤</i><span>资产库</span></a>
+
+      <div class="nav-group">运行时</div>
+      <a class="nav-item" data-view="providers"><i class="ico">◎</i><span>AI 提供方</span></a>
+      <a class="nav-item" data-view="jobs"><i class="ico">≡</i><span>任务中心</span><span class="badge-count" id="navJobBadge">0</span></a>
+      <a class="nav-item" data-view="system"><i class="ico">⚙</i><span>系统与接口</span></a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="queue-meter" id="queueMeter">
+        <div class="qm-row"><span>队列</span><b id="qmText">–</b></div>
+        <div class="qm-bar"><i id="qmBar" style="width:0%"></i></div>
+      </div>
+      <div class="health-row" id="healthRow"><span class="dot"></span><span id="healthText">正在连接…</span></div>
+    </div>
+  </aside>
+
+  <!-- ============ 主区 ============ -->
+  <main class="main">
+    <header class="topbar">
+      <div class="tb-left">
+        <h1 id="viewTitle">总览看板</h1>
+        <p id="viewDesc" class="tb-desc">生产、治理与交付的实时状态</p>
+      </div>
+      <div class="tb-right">
+        <div class="pill" id="pillProvider" title="当前生效的 AI 提供方">提供方：–</div>
+        <div class="pill" id="pillQueue" title="队列占用">队列 –</div>
+        <button class="btn ghost sm" id="btnRefresh">刷新</button>
+      </div>
+    </header>
+
+    <div class="scroll" id="scroll">
+
+      <!-- ==================== 总览 ==================== -->
+      <section class="view" id="view-dashboard">
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h2>提供方健康</h2><span class="card-sub">启动时自动探测，可手动复检</span>
+              <button class="btn ghost sm" id="btnHealthAll">复检全部</button>
+            </div>
+            <div class="card-body" id="dashProviders"><div class="empty">加载中…</div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>质量规则命中分布</h2><span class="card-sub">来自全部资产检查任务</span></div>
+            <div class="card-body" id="dashRules"><div class="empty">暂无检查数据，去「命名与资产检查」跑一次</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>最近任务</h2><span class="card-sub">点击任意行查看详情</span>
+            <button class="btn ghost sm" data-goto="jobs">全部任务</button>
+          </div>
+          <div class="card-body no-pad"><div id="dashRecent"></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== 一键交付 ==================== -->
+      <section class="view" id="view-delivery">
+        <div class="callout">
+          <strong>一条链路跑完「生成 → 格式转换 → 质检 → 打包」</strong>
+          <span>适合正式提需求时使用：提交后无需人工干预，产出可直接发给下游的交付包（含 manifest 与质检报告）。</span>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h2>① 生成配置</h2></div>
+            <div class="card-body">
+              <div class="field">
+                <label>提示词（每行一条，支持 {size} 占位）</label>
+                <textarea id="dlPrompts" rows="6" class="input mono">ui icon fire spell, flat design, soft gradient
+ui icon ice shield, flat design, soft gradient
+ui icon arcane rune, flat design, soft gradient</textarea>
+              </div>
+              <div class="row-3">
+                <div class="field"><label>宽度档位</label><input class="input" id="dlWidths" value="512,1024" placeholder="512,1024"></div>
+                <div class="field"><label>高度</label><input class="input" id="dlHeight" type="number" value="512"></div>
+                <div class="field"><label>每条出图数</label><input class="input" id="dlCount" type="number" value="2" min="1" max="8"></div>
+              </div>
+              <div class="row-3">
+                <div class="field"><label>提供方</label><select class="input" id="dlProvider"></select></div>
+                <div class="field"><label>步数</label><input class="input" id="dlSteps" type="number" value="24"></div>
+                <div class="field"><label>命名规范</label><select class="input" id="dlNamingPreset"></select></div>
+              </div>
+              <div class="row-3">
+                <div class="field"><label>品类 token</label><input class="input" id="dlCategory" value="icon"></div>
+                <div class="field"><label>状态 token</label><input class="input" id="dlState" value="normal"></div>
+                <div class="field"><label>种子模式</label>
+                  <select class="input" id="dlSeedMode">
+                    <option value="increment">递增（可复现）</option>
+                    <option value="random">随机</option>
+                    <option value="fixed">固定</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>② 后处理与交付</h2></div>
+            <div class="card-body">
+              <label class="switch"><input type="checkbox" id="dlConvertOn" checked><span>启用格式转换</span></label>
+              <div class="row-3 indent">
+                <div class="field"><label>目标格式</label><select class="input" id="dlFormat"><option>webp</option><option>png</option><option>jpg</option><option>avif</option></select></div>
+                <div class="field"><label>质量</label><input class="input" id="dlQuality" type="number" value="85" min="1" max="100"></div>
+                <div class="field"><label>最长边</label><input class="input" id="dlMaxEdge" type="number" value="512"></div>
+              </div>
+              <label class="switch"><input type="checkbox" id="dlInspectOn" checked><span>启用资产检查（命名 + 完整性）</span></label>
+              <div class="row-2 indent">
+                <div class="field"><label>透明通道策略</label>
+                  <select class="input" id="dlAlpha"><option value="any">不限制</option><option value="require">必须带透明</option><option value="forbid">禁止透明</option></select>
+                </div>
+                <div class="field"><label>最短边下限 (px)</label><input class="input" id="dlMinEdge" type="number" value="16"></div>
+              </div>
+              <div class="row-2">
+                <div class="field"><label>交付包名</label><input class="input" id="dlPackName" value="ai-art-delivery"></div>
+                <div class="field"><label>版本</label><input class="input" id="dlPackVersion" value="v1.0.0"></div>
+              </div>
+              <label class="switch"><input type="checkbox" id="dlStrict"><span>严格模式：质检不通过则阻断交付</span></label>
+              <label class="switch"><input type="checkbox" id="dlByCategory" checked><span>按品类分目录（icons/、ui/…）</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn primary" id="btnDelivery">启动全链路交付</button>
+          <span class="hint" id="dlEstimate">提示：先在「批量生成」里用「预演计划」确认规模</span>
+        </div>
+
+        <div class="card" id="dlRunCard" hidden>
+          <div class="card-head"><h2>执行进度</h2><span class="card-sub" id="dlJobName"></span></div>
+          <div class="card-body"><div id="dlRun"></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== 批量生成 ==================== -->
+      <section class="view" id="view-generate">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h2>生成参数</h2></div>
+            <div class="card-body">
+              <div class="field"><label>提示词（每行一条）</label>
+                <textarea id="genPrompts" rows="7" class="input mono">ui icon fire spell, game asset, flat
+ui icon ice shield, game asset, flat
+ui icon lightning bolt, game asset, flat</textarea>
+              </div>
+              <div class="row-3">
+                <div class="field"><label>提供方</label><select class="input" id="genProvider"></select></div>
+                <div class="field"><label>模型</label><select class="input" id="genModel"></select></div>
+                <div class="field"><label>每条出图数</label><input class="input" id="genCount" type="number" value="2" min="1" max="8"></div>
+              </div>
+              <div class="row-4">
+                <div class="field"><label>宽度档位</label><input class="input" id="genWidths" value="512,768"></div>
+                <div class="field"><label>高度档位</label><input class="input" id="genHeights" value="512"></div>
+                <div class="field"><label>步数</label><input class="input" id="genSteps" type="number" value="24"></div>
+                <div class="field"><label>CFG</label><input class="input" id="genCfg" type="number" value="7" step="0.5"></div>
+              </div>
+              <div class="row-3">
+                <div class="field"><label>种子模式</label>
+                  <select class="input" id="genSeedMode"><option value="increment">递增</option><option value="random">随机</option><option value="fixed">固定</option></select>
+                </div>
+                <div class="field"><label>种子起点</label><input class="input" id="genSeed" type="number" value="-1"></div>
+                <div class="field"><label>风格预设</label><input class="input" id="genStyle" value="none"></div>
+              </div>
+              <div class="field"><label>负向提示词</label><input class="input" id="genNegative" placeholder="low quality, watermark, text"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>命名与后处理</h2></div>
+            <div class="card-body">
+              <div class="row-2">
+                <div class="field"><label>命名规范集</label><select class="input" id="genNamingPreset"></select></div>
+                <div class="field"><label>输出子目录</label><input class="input" id="genSubdir" placeholder="可留空"></div>
+              </div>
+              <div class="reader" id="genPatternBox"></div>
+              <div class="row-3">
+                <div class="field"><label>category</label><input class="input" id="genCategory" value="icon"></div>
+                <div class="field"><label>state</label><input class="input" id="genState" value="normal"></div>
+                <div class="field"><label>name（留空则自动推导）</label><input class="input" id="genName" placeholder="auto"></div>
+              </div>
+              <hr class="sep">
+              <label class="switch"><input type="checkbox" id="genAutoInspect" checked><span>生成后自动质检（写入健康分）</span></label>
+              <label class="switch"><input type="checkbox" id="genAutoConvert"><span>生成后自动转格式</span></label>
+              <div class="row-3 indent" id="genConvRow">
+                <div class="field"><label>格式</label><select class="input" id="genConvFormat"><option>webp</option><option>png</option><option>avif</option></select></div>
+                <div class="field"><label>质量</label><input class="input" id="genConvQuality" type="number" value="85"></div>
+                <div class="field"><label>最长边</label><input class="input" id="genConvEdge" type="number" value="512"></div>
+              </div>
+              <hr class="sep">
+              <div class="reader" id="genPlanBox"><span class="muted">点击「预演计划」查看规模与产物命名示例</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn ghost" id="btnGenPlan">预演计划</button>
+          <button class="btn primary" id="btnGenRun">提交批量生成</button>
+          <span class="hint" id="genHint"></span>
+        </div>
+
+        <div class="card" id="genRunCard" hidden>
+          <div class="card-head"><h2>执行进度</h2><span class="card-sub" id="genJobName"></span>
+            <button class="btn ghost sm" id="btnGenCancel">取消</button>
+          </div>
+          <div class="card-body"><div id="genRun"></div></div>
+        </div>
+        <div class="card" id="genResultCard" hidden>
+          <div class="card-head"><h2>产物预览</h2><span class="card-sub" id="genResultSub"></span></div>
+          <div class="card-body"><div class="artifact-grid" id="genGrid"></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== 格式转换 ==================== -->
+      <section class="view" id="view-convert">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h2>输入源</h2></div>
+            <div class="card-body">
+              <div class="seg" id="convSourceSeg">
+                <button data-src="upload" class="on">上传文件</button>
+                <button data-src="job">上一任务产物</button>
+                <button data-src="workspace">工作区目录</button>
+              </div>
+              <div class="src-block" data-src="upload">
+                <div class="dropzone" id="convDrop">
+                  <input type="file" id="convFiles" multiple accept="image/*" hidden>
+                  <div class="dz-inner"><b>拖拽图片到此处</b><span>或点击选择（png / jpg / webp / avif / tiff / gif / bmp）</span></div>
+                </div>
+                <div class="filelist" id="convFileList"></div>
+              </div>
+              <div class="src-block" data-src="job" hidden>
+                <div class="field"><label>选择任务</label><select class="input" id="convJob"></select></div>
+                <p class="hint">将消费该任务的全部图像产物作为输入。</p>
+              </div>
+              <div class="src-block" data-src="workspace" hidden>
+                <div class="row-2">
+                  <div class="field"><label>子目录</label><input class="input" id="convSubdir" value="outputs"></div>
+                  <div class="field"><label>文件名包含</label><input class="input" id="convKeyword" placeholder="可留空"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>转换参数</h2></div>
+            <div class="card-body">
+              <div class="row-3">
+                <div class="field"><label>目标格式</label><select class="input" id="cvFormat"><option>webp</option><option>png</option><option>jpg</option><option>avif</option><option>tiff</option></select></div>
+                <div class="field"><label>质量</label><input class="input" id="cvQuality" type="number" value="85" min="1" max="100"></div>
+                <div class="field"><label>编码强度</label><input class="input" id="cvEffort" type="number" value="4" min="0" max="9"></div>
+              </div>
+              <div class="row-3">
+                <div class="field"><label>尺寸模式</label>
+                  <select class="input" id="cvResizeMode">
+                    <option value="none">保持原始尺寸</option>
+                    <option value="maxEdge" selected>限制最长边</option>
+                    <option value="box">限制在尺寸盒内</option>
+                    <option value="exact">精确尺寸</option>
+                    <option value="crop">裁剪填充</option>
+                  </select>
+                </div>
+                <div class="field"><label>最长边 / 宽</label><input class="input" id="cvW" type="number" value="512"></div>
+                <div class="field"><label>高</label><input class="input" id="cvH" type="number" value="512"></div>
+              </div>
+              <div class="row-2">
+                <div class="field"><label>倍率多档（逗号分隔，后缀可省略）</label><input class="input" id="cvVariants" value="1x:1,_half:0.5" placeholder="1x:1,_2x:2"></div>
+                <div class="field"><label>JPG 铺底色</label><input class="input" id="cvBg" value="#ffffff"></div>
+              </div>
+              <div class="row-2">
+                <div class="field"><label>输出命名规范</label><select class="input" id="cvNamingPreset"></select></div>
+                <div class="field"><label>输出子目录</label><input class="input" id="cvSubdir" placeholder="可留空"></div>
+              </div>
+              <label class="switch"><input type="checkbox" id="cvStrip" checked><span>剥离 EXIF 等元数据（减小体积）</span></label>
+              <label class="switch"><input type="checkbox" id="cvFlatten" checked><span>转为无透明格式时自动铺底色</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn primary" id="btnConvert">提交转换</button>
+          <span class="hint" id="cvHint"></span>
+        </div>
+
+        <div class="card" id="cvRunCard" hidden>
+          <div class="card-head"><h2>执行进度</h2><span class="card-sub" id="cvJobName"></span></div>
+          <div class="card-body"><div id="cvRun"></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== 资产检查 ==================== -->
+      <section class="view" id="view-inspect">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h2>检查对象</h2></div>
+            <div class="card-body">
+              <div class="seg" id="insSourceSeg">
+                <button data-src="upload" class="on">上传文件</button>
+                <button data-src="workspace">工作区目录</button>
+                <button data-src="job">任务产物</button>
+              </div>
+              <div class="src-block" data-src="upload">
+                <div class="dropzone" id="insDrop">
+                  <input type="file" id="insFiles" multiple accept="image/*" hidden>
+                  <div class="dz-inner"><b>拖拽图片到此处</b><span>支持批量，单次上限 500 个文件</span></div>
+                </div>
+                <div class="filelist" id="insFileList"></div>
+              </div>
+              <div class="src-block" data-src="workspace" hidden>
+                <div class="field"><label>子目录</label><input class="input" id="insSubdir" value="uploads/sample-assets"></div>
+                <p class="hint">内置样例资产位于 <code class="mono">uploads/sample-assets</code>，包含 12 个刻意构造的问题样本。</p>
+              </div>
+              <div class="src-block" data-src="job" hidden>
+                <div class="field"><label>选择任务</label><select class="input" id="insJob"></select></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>规则集</h2></div>
+            <div class="card-body">
+              <div class="row-2">
+                <div class="field"><label>命名规范集</label><select class="input" id="insPreset"></select></div>
+                <div class="field"><label>透明通道策略</label>
+                  <select class="input" id="insAlpha"><option value="any">不限制</option><option value="require">必须带透明</option><option value="forbid">禁止透明</option></select>
+                </div>
+              </div>
+              <div class="row-3">
+                <div class="field"><label>最短边下限</label><input class="input" id="insMinEdge" type="number" value="8"></div>
+                <div class="field"><label>最长边上限</label><input class="input" id="insMaxEdge" type="number" value="8192"></div>
+                <div class="field"><label>体积上限 (KB)</label><input class="input" id="insMaxKB" type="number" value="20480"></div>
+              </div>
+              <div class="row-3">
+                <div class="field"><label>空白图阈值 (灰度标准差)</label><input class="input" id="insBlank" type="number" value="2" step="0.5"></div>
+                <div class="field"><label>相似判定阈值（灰度差）</label><input class="input" id="insDup" type="number" value="6" min="0" max="40"></div>
+                <div class="field"><label>长宽比上限</label><input class="input" id="insRatio" type="number" value="8"></div>
+              </div>
+              <label class="switch"><input type="checkbox" id="insPow2"><span>要求尺寸为 2 的幂</span></label>
+              <label class="switch"><input type="checkbox" id="insCheckBlank" checked><span>启用空白/近纯色检测</span></label>
+              <label class="switch"><input type="checkbox" id="insDupOn" checked><span>启用感知哈希重复检测</span></label>
+              <div class="reader" id="insPatternBox"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn primary" id="btnInspect">提交检查</button>
+          <button class="btn ghost" id="btnRenamePlan">命名修复预演</button>
+          <span class="hint" id="insHint"></span>
+        </div>
+
+        <div class="card" id="insRunCard" hidden>
+          <div class="card-head"><h2>执行进度</h2><span class="card-sub" id="insJobName"></span></div>
+          <div class="card-body"><div id="insRun"></div></div>
+        </div>
+
+        <div id="insReport" hidden>
+          <div class="kpi-grid" id="insKpi"></div>
+          <div class="grid-3">
+            <div class="card"><div class="card-head"><h2>通过率</h2></div><div class="card-body center" id="insRing"></div></div>
+            <div class="card"><div class="card-head"><h2>问题级别分布</h2></div><div class="card-body" id="insDonut"></div></div>
+            <div class="card"><div class="card-head"><h2>规则命中 Top</h2></div><div class="card-body" id="insBars"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>逐资产明细</h2><span class="card-sub">按严重程度排序</span>
+              <button class="btn ghost sm" id="btnPackPassed">仅打包本次产物</button>
+            </div>
+            <div class="card-body no-pad"><div id="insTable"></div></div>
+          </div>
+          <div class="card" id="insRenameCard" hidden>
+            <div class="card-head"><h2>命名修复预演</h2><span class="card-sub">不改动任何文件，仅给出建议名</span></div>
+            <div class="card-body no-pad"><div id="insRename"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 交付包 ==================== -->
+      <section class="view" id="view-packages">
+        <div class="card">
+          <div class="card-head"><h2>手动打包</h2><span class="card-sub">从任意任务的产物快速打一个交付包</span></div>
+          <div class="card-body">
+            <div class="row-3">
+              <div class="field"><label>来源任务</label><select class="input" id="pkJob"></select></div>
+              <div class="field"><label>包名</label><input class="input" id="pkName" value="ai-art-delivery"></div>
+              <div class="field"><label>版本</label><input class="input" id="pkVersion" value="v1.0.0"></div>
+            </div>
+            <div class="row-3">
+              <div class="field"><label>目录结构</label><select class="input" id="pkStructure"><option value="byCategory">按品类分目录</option><option value="flat">扁平</option></select></div>
+              <div class="field"><label>前置校验</label><select class="input" id="pkPrecheck"><option value="warn">执行但不阻断</option><option value="strict">严格：有问题即阻断</option><option value="off">关闭</option></select></div>
+              <div class="field"><label>包内附带</label>
+                <select class="input" id="pkInclude">
+                  <option value="all">manifest + 报告 + 校验清单</option>
+                  <option value="minimal">仅 manifest</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn primary" id="btnPack">提交打包</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>已生成交付包</h2><span class="card-sub" id="pkgSub"></span></div>
+          <div class="card-body no-pad"><div id="pkgList"><div class="empty">加载中…</div></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== 资产库 ==================== -->
+      <section class="view" id="view-assets">
+        <div class="card">
+          <div class="card-head"><h2>工作区资产</h2><span class="card-sub" id="assetsSub"></span>
+            <select class="input sm" id="assetsSubdir">
+              <option value="outputs">outputs（生产产物）</option>
+              <option value="uploads">uploads（上传与样例）</option>
+              <option value="reports">reports（报告）</option>
+            </select>
+          </div>
+          <div class="card-body"><div class="artifact-grid" id="assetsGrid"><div class="empty">加载中…</div></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== 提供方 ==================== -->
+      <section class="view" id="view-providers">
+        <div class="callout">
+          <strong>统一请求 / 响应 / 错误契约</strong>
+          <span>不论底层是同步返回 base64、异步 taskId 轮询，还是工作流引擎，上层看到的都是同一套 <code class="mono">GenerateRequest</code> → <code class="mono">NormalizedImage[]</code>，错误一律落到统一错误码。</span>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>已注册提供方</h2><span class="card-sub">改动即时生效，无需重启服务</span>
+            <button class="btn ghost sm" id="btnProviderHealth">复检全部</button>
+          </div>
+          <div class="card-body"><div class="provider-grid" id="providerGrid"><div class="empty">加载中…</div></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== 任务中心 ==================== -->
+      <section class="view" id="view-jobs">
+        <div class="card">
+          <div class="card-head"><h2>任务列表</h2><span class="card-sub" id="jobsSub"></span>
+            <div class="filters">
+              <select class="input sm" id="jobStatusFilter">
+                <option value="">全部状态</option>
+                <option value="queued">排队中</option><option value="running">执行中</option>
+                <option value="succeeded">成功</option><option value="partial">部分成功</option>
+                <option value="failed">失败</option><option value="canceled">已取消</option>
+              </select>
+              <select class="input sm" id="jobKindFilter">
+                <option value="">全部类型</option>
+                <option value="generate">批量生成</option><option value="convert">格式转换</option>
+                <option value="inspect">资产检查</option><option value="pack">打包</option><option value="delivery">全链路交付</option>
+              </select>
+              <input class="input sm" id="jobKeyword" placeholder="搜索任务名 / ID">
+            </div>
+          </div>
+          <div class="card-body no-pad"><div id="jobsTable"><div class="empty">加载中…</div></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== 系统 ==================== -->
+      <section class="view" id="view-system">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h2>运行时状态</h2></div>
+            <div class="card-body" id="sysRuntime"><div class="empty">加载中…</div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>目录与配额</h2></div>
+            <div class="card-body" id="sysPaths"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>接口清单（自描述）</h2><span class="card-sub">前端不硬编码任何枚举</span></div>
+          <div class="card-body no-pad"><div id="sysRoutes"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>统一错误码注册表</h2><span class="card-sub" id="sysErrSub"></span></div>
+          <div class="card-body no-pad"><div id="sysErrors"></div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ 任务详情抽屉 ============ -->
+<div class="drawer-mask" id="drawerMask" hidden></div>
+<aside class="drawer" id="drawer" hidden>
+  <header class="drawer-head">
+    <div><h2 id="drawerTitle">任务详情</h2><p class="mono" id="drawerId"></p></div>
+    <button class="btn ghost sm" id="drawerClose">关闭</button>
+  </header>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<!-- ============ 图片预览 ============ -->
+<div class="lightbox" id="lightbox" hidden><img id="lightboxImg" alt=""><div class="lb-cap" id="lightboxCap"></div></div>
+
+<div class="toasts" id="toasts"></div>
+<script src="/app.js?v=1.0.0" type="module"></script>
+</body>
+</html>

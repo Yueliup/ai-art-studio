@@ -1,0 +1,20 @@
+{
+  "name": "ai-art-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI 美术生产工具集 - 格式转换 / 批量生成 / 资产检查 / 打包交付",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "seed": "node scripts/seed.js",
+    "smoke": "node scripts/smoke.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "sharp": "^0.34.4"
+  }
+}
